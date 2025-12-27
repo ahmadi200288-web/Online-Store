@@ -13,7 +13,7 @@
 
 <style scoped>
 .site-footer {
-  background: white;
+  background: rgba(230, 226, 226, 0.95);
   border-top: 1px solid var(--border);
   padding: 40px 20px;
   margin-top: auto; /* چسبیدن به پایین */
@@ -28,7 +28,7 @@
 }
 
 .link {
-  color: var(--light);
+  color: black;
   font-weight: 600;
   font-size: 0.95rem;
   position: relative;

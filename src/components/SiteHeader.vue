@@ -124,7 +124,7 @@ onUnmounted(() => {
 
 <style scoped>
 .header {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(230, 226, 226, 0.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   position: sticky;

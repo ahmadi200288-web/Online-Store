@@ -30,6 +30,7 @@
         <div class="grid">
           <div v-for="item in activeFlashSales" :key="item.id" class="p-card">
             <div class="item-timer">⏱ {{ item.timeLeft }}</div>
+            
             <button class="fav-btn" :class="{ active: cartStore.isInWishlist(item.productId) }" @click.stop="item.product && cartStore.addToWishlist(item.product)">❤</button>
             <div class="img-w" @click="$router.push('/product/' + item.productId)">
               <img v-if="item.product" :src="item.product.image" :alt="item.product.name" />
@@ -46,6 +47,50 @@
         </div>
       </div>
     </section>
+
+    <section v-if="newArrivals.length > 0" class="new-arrivals">
+      <div class="container">
+        <div class="sec-head">
+          <h2>New Arrivals</h2>
+          <p class="subtitle">Check out the latest products added to store.</p>
+        </div>
+        
+        <div class="grid">
+          <div v-for="product in newArrivals" :key="product.id" class="p-card">
+            
+            <div v-if="product.flashInfo" class="item-timer">⏱ {{ product.flashInfo.timeLeft }}</div>
+
+            <button class="fav-btn" :class="{ active: cartStore.isInWishlist(product.id) }" @click.stop="cartStore.addToWishlist(product)">❤</button>
+            
+            <div class="img-w" @click="$router.push('/product/' + product.id)">
+              <img :src="product.image" :alt="product.name" />
+            </div>
+            
+            <div class="p-info">
+              <h3>{{ product.name }}</h3>
+              
+              <div class="prices">
+                <template v-if="product.flashInfo">
+                  <span class="old">${{ product.price }}</span>
+                  <span class="new">${{ product.flashInfo.discountPrice }}</span>
+                </template>
+                <template v-else>
+                  <span class="new">${{ product.price }}</span>
+                </template>
+              </div>
+
+              <button 
+                class="add-btn" 
+                @click.stop="cartStore.addToCart(product, product.flashInfo ? product.flashInfo.discountPrice : product.price)"
+              >
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 </template>
 
@@ -58,11 +103,13 @@ import { useCartStore } from '../store/cart';
 const cartStore = useCartStore();
 const router = useRouter();
 const flashSales = ref([]); 
-const slides = ref([]); // اسلایدها از دیتابیس پر می‌شوند
+const slides = ref([]);
+const newArrivals = ref([]); 
 const currentSlide = ref(0);
 const currentTime = ref(new Date().getTime());
 let timerInterval = null;
 
+// محاسبه لیست تخفیف‌های فعال برای سکشن اول
 const activeFlashSales = computed(() => {
   return flashSales.value.filter(item => {
     return item.product && item.endTime > currentTime.value;
@@ -97,22 +144,63 @@ onMounted(async () => {
     const [pRes, fRes, sRes] = await Promise.all([
       axios.get("http://localhost:3000/products"), 
       axios.get("http://localhost:3000/flashSale"),
-      axios.get("http://localhost:3000/slides") // دریافت اسلایدها
+      axios.get("http://localhost:3000/slides")
     ]);
     
     slides.value = sRes.data;
 
+    // آماده‌سازی داده‌های بخش Flash Sale
     flashSales.value = fRes.data.map(fs => ({ 
       ...fs, 
       product: pRes.data.find(x => String(x.id) === String(fs.productId)),
       timeLeft: "Loading..."
     }));
 
+    // آماده‌سازی New Arrivals
+    // 1. دریافت همه محصولات و مرتب‌سازی بر اساس جدیدترین
+    const sortedProducts = [...pRes.data].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 4);
+
+    // 2. بررسی اینکه آیا هر کدام از این محصولات جدید، در لیست تخفیف هستند یا خیر
+    newArrivals.value = sortedProducts.map(prod => {
+      // پیدا کردن رکورد تخفیف مربوط به این محصول
+      const flashDeal = fRes.data.find(f => String(f.productId) === String(prod.id));
+      
+      // اگر تخفیف داشت و هنوز مهلتش تمام نشده بود
+      if (flashDeal && flashDeal.endTime > new Date().getTime()) {
+        return {
+          ...prod,
+          flashInfo: { // اطلاعات تخفیف را به آبجکت محصول می‌چسبانیم
+            discountPrice: flashDeal.discountPrice,
+            endTime: flashDeal.endTime,
+            timeLeft: "Loading..."
+          }
+        };
+      }
+      // اگر تخفیف نداشت
+      return { ...prod, flashInfo: null };
+    });
+
+    // تایمر سراسری برای به‌روزرسانی زمان در هر دو لیست
     timerInterval = setInterval(() => {
       currentTime.value = new Date().getTime();
+      
+      // آپدیت تایمر سکشن Flash Sale
       flashSales.value.forEach(item => {
         item.timeLeft = formatTimeLeft(item.endTime);
       });
+
+      // آپدیت تایمر سکشن New Arrivals
+      newArrivals.value.forEach(prod => {
+        if (prod.flashInfo) {
+          // اگر زمان تمام شد، اطلاعات تخفیف را حذف کن
+          if (prod.flashInfo.endTime <= currentTime.value) {
+            prod.flashInfo = null;
+          } else {
+            prod.flashInfo.timeLeft = formatTimeLeft(prod.flashInfo.endTime);
+          }
+        }
+      });
+
     }, 1000);
 
     setInterval(nextSlide, 5000);
@@ -121,13 +209,15 @@ onMounted(async () => {
   }
 });
 
-onUnmounted(() => clearInterval(timerInterval));
+onUnmounted(() => {
+    if(timerInterval) clearInterval(timerInterval)
+});
 </script>
 
 <style scoped>
 .home { padding-bottom: 60px; }
 
-/* استایل اسلایدر کاروسل */
+/* Slider Styles */
 .slider-wrapper {
   width: 100%;
   height: 400px;
@@ -136,7 +226,6 @@ onUnmounted(() => clearInterval(timerInterval));
   margin-bottom: 50px;
   border-radius: 20px;
   box-shadow: var(--shadow);
-  /* محدودیت عرض برای نمایش زیباتر در دسکتاپ بزرگ */
   max-width: 1380px; 
   margin-left: auto; 
   margin-right: auto;
@@ -209,14 +298,19 @@ onUnmounted(() => clearInterval(timerInterval));
 .prev:hover, .next:hover { background: white; color: black; }
 .prev { left: 20px; } .next { right: 20px; }
 
-/* کانتینر اصلی */
+/* Container */
 .container { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+
+/* Sections */
+.flash-sale, .new-arrivals {
+  margin-bottom: 60px; 
+}
 
 .sec-head { margin-bottom: 30px; text-align: center; }
 .sec-head h2 { font-size: 2rem; font-weight: 800; color: var(--dark); margin-bottom: 5px; }
 .subtitle { color: var(--light); font-size: 1.1rem; }
 
-/* گرید محصولات */
+/* Grid */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
