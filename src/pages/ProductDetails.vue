@@ -74,7 +74,13 @@ const loadProductData = async () => {
 
 const handleAddToCart = () => {
   if (!product.value) return;
-  const finalPrice = flashInfo.value ? flashInfo.value.discountPrice : product.value.price;
+
+  // چک کردن اینکه آیا تخفیف وجود دارد و زمانش نگذشته است؟
+  const now = new Date().getTime();
+  const isValidSale = flashInfo.value && flashInfo.value.endTime > now;
+
+  const finalPrice = isValidSale ? flashInfo.value.discountPrice : product.value.price;
+
   cartStore.addToCart(product.value, finalPrice);
   alert(`${product.value.name} added to cart at $${finalPrice}`);
 };

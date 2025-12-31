@@ -91,32 +91,7 @@
       "image": "/images/apple-iphone-air.jpg"
     }
   ],
-  "flashSale": [
-    {
-      "id": "1766848070104",
-      "productId": "1766783226301",
-      "discountPrice": 792,
-      "endTime": 1766934470104
-    },
-    {
-      "id": "1766848071072",
-      "productId": "1766783164630",
-      "discountPrice": 882,
-      "endTime": 1766934471072
-    },
-    {
-      "id": "1766848075359",
-      "productId": "1766782920062",
-      "discountPrice": 882,
-      "endTime": 1766934475359
-    },
-    {
-      "id": "1766848076711",
-      "productId": "1766783033878",
-      "discountPrice": 693,
-      "endTime": 1766934476711
-    }
-  ],
+  "flashSale": [],
   "carts": [
     {
       "id": "2",

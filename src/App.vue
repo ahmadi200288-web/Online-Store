@@ -19,12 +19,17 @@ const userStore = useUserStore();
 const cartStore = useCartStore();
 
 onMounted(async () => {
+  // ۱. بررسی لاگین کاربر
   const savedUser = localStorage.getItem('user');
   if (savedUser) {
     const user = JSON.parse(savedUser);
     userStore.login(user); 
     await cartStore.loadUserCart();
   }
+
+  // ۲. بررسی اعتبار قیمت‌های سبد خرید (چه لاگین باشد چه نباشد)
+  // این خط باعث می‌شود اگر ادمین تخفیفی را حذف کرده باشد، قیمت در سبد اصلاح شود
+  await cartStore.validateCartPrices();
 });
 </script>
 

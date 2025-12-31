@@ -155,14 +155,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 
 const products = ref([]);
 const flashSales = ref([]);
 const users = ref([]);
-const slides = ref([]); // لیست اسلایدها
+const slides = ref([]);
 const newProduct = ref({ name: '', price: 0, brand: '', category: '', description: '', image: '' });
+
+// متغیر برای زمان حال و تایمر
+const currentTime = ref(new Date().getTime());
+let adminTimer = null;
 
 const fetchData = async () => {
   try {
@@ -237,42 +241,77 @@ const deleteUser = async (userId) => {
   }
 };
 
-// --- Flash Sale Logic ---
-const isFlash = (id) => flashSales.value.some(f => String(f.productId) === String(id));
-const getFlashInfo = (id) => flashSales.value.find(f => String(f.productId) === String(id));
+// --- Flash Sale Logic (UPDATED) ---
+
+// این تابع حالا زمان را هم چک می‌کند
+const isFlash = (id) => {
+  return flashSales.value.some(f => 
+    String(f.productId) === String(id) && f.endTime > currentTime.value
+  );
+};
+
+// دریافت اطلاعات تخفیف با شرط زمان
+const getFlashInfo = (id) => {
+  return flashSales.value.find(f => 
+    String(f.productId) === String(id) && f.endTime > currentTime.value
+  );
+};
+
 const getDiscountPercent = (product) => {
   const flash = getFlashInfo(product.id);
-  return flash ? Math.round(((product.price - flash.discountPrice) / product.price) * 100) : 0;
+  // اگر فلش وجود نداشت یا منقضی شده بود، صفر برگردان
+  if (!flash) return 0;
+  return Math.round(((product.price - flash.discountPrice) / product.price) * 100);
 };
 
 const updateDiscount = async (product, percent) => {
   const flash = getFlashInfo(product.id);
+  if (!flash) return;
   const newPrice = Math.round(product.price * (1 - percent / 100));
   await axios.patch(`http://localhost:3000/flashSale/${flash.id}`, { discountPrice: newPrice });
   fetchData();
 };
 
 const startFlash = async (product) => {
+  // پاک کردن تخفیف‌های قبلی (منقضی شده) این محصول اگر وجود داشت
+  const oldFlash = flashSales.value.find(f => String(f.productId) === String(product.id));
+  if (oldFlash) {
+     await axios.delete(`http://localhost:3000/flashSale/${oldFlash.id}`);
+  }
+
   await axios.post("http://localhost:3000/flashSale", {
     id: String(Date.now()),
     productId: String(product.id),
     discountPrice: Math.round(product.price * 0.9),
-    endTime: new Date().getTime() + 86400000
+    endTime: new Date().getTime() + 86400000 // 24 ساعت
   });
   fetchData();
 };
 
 const stopFlash = async (productId) => {
-  const flash = getFlashInfo(productId);
-  await axios.delete(`http://localhost:3000/flashSale/${flash.id}`);
-  fetchData();
+  // اینجا نیازی به چک کردن زمان نیست، چون می‌خواهیم دستی حذف کنیم
+  const flash = flashSales.value.find(f => String(f.productId) === String(productId));
+  if (flash) {
+    await axios.delete(`http://localhost:3000/flashSale/${flash.id}`);
+    fetchData();
+  }
 };
 
 const calculateUserTotal = (cart) => {
   return cart.reduce((sum, item) => sum + ((item.priceAtPurchase || item.price) * item.quantity), 0);
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  // آپدیت کردن زمان جاری هر ثانیه برای رفرش شدن ظاهر جدول
+  adminTimer = setInterval(() => {
+    currentTime.value = new Date().getTime();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (adminTimer) clearInterval(adminTimer);
+});
 </script>
 
 <style scoped>

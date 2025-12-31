@@ -23,7 +23,7 @@ export const useCartStore = defineStore("cart", {
 
       if (existingItem) {
         existingItem.quantity++;
-        existingItem.priceAtPurchase = priceToUse; 
+        existingItem.priceAtPurchase = priceToUse;
       } else {
         this.items.push({
           ...product,
@@ -79,6 +79,46 @@ export const useCartStore = defineStore("cart", {
         if (error.response && error.response.status !== 404) {
           console.error("Error loading cart:", error);
         }
+      }
+    },
+
+    // --- تابع جدید برای بررسی اعتبار قیمت‌ها ---
+    async validateCartPrices() {
+      try {
+        // ۱. دریافت آخرین لیست حراجی‌ها
+        const res = await axios.get("http://localhost:3000/flashSale");
+        const flashSales = res.data;
+        const now = new Date().getTime();
+        let hasChanged = false;
+
+        this.items.forEach(item => {
+          // ۲. پیدا کردن تخفیف مرتبط با محصول داخل سبد
+          const sale = flashSales.find(f => String(f.productId) === String(item.id));
+          
+          // ۳. شرط اعتبار: تخفیف وجود داشته باشد + زمانش نگذشته باشد
+          const isSaleValid = sale && sale.endTime > now;
+
+          if (isSaleValid) {
+            // اگر معتبر است، قیمت سبد را با قیمت تخفیف هماهنگ کن (برای اطمینان)
+            if (item.priceAtPurchase !== sale.discountPrice) {
+              item.priceAtPurchase = sale.discountPrice;
+              hasChanged = true;
+            }
+          } else {
+            // ۴. اگر تخفیف حذف شده یا زمانش تمام شده -> برگرد به قیمت اصلی
+            if (item.priceAtPurchase !== item.price) {
+              item.priceAtPurchase = item.price;
+              hasChanged = true;
+            }
+          }
+        });
+
+        if (hasChanged) {
+          this.save();
+          console.log("Cart prices updated due to sale expiration or removal.");
+        }
+      } catch (error) {
+        console.error("Price validation error:", error);
       }
     },
 

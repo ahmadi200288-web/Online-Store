@@ -38,9 +38,11 @@
           </div>
 
           <div class="actions">
-            <button class="add-btn" @click="cartStore.addToCart(product)">
-              Add to Cart
-            </button>
+            <button 
+            class="add-btn" 
+            @click="cartStore.addToCart(product, product.flashInfo ? product.flashInfo.discountPrice : null)">
+            Add to Cart
+          </button>
             <button class="details-btn" @click="$router.push('/product/' + product.id)">
               View
             </button>
@@ -101,17 +103,26 @@ const filteredProducts = computed(() => {
 const startTimer = () => {
   if (timer) clearInterval(timer);
   timer = setInterval(() => {
-    flashSales.value.forEach(item => {
-      const now = new Date().getTime();
+    const now = new Date().getTime();
+
+    // ما لیست flashSales را فیلتر می‌کنیم تا آیتم‌های منقضی شده حذف شوند
+    flashSales.value = flashSales.value.filter(item => {
       const dist = item.endTime - now;
-      if (dist < 0) item.timeLeft = "00:00:00";
-      else {
-        const h = Math.floor(dist / 3600000);
-        const m = Math.floor((dist % 3600000) / 60000);
-        const s = Math.floor((dist % 60000) / 1000);
-        item.timeLeft = `${h}:${m}:${s}`;
+
+      // اگر زمان تمام شده (کوچکتر از صفر)، از لیست حذفش کن (return false)
+      if (dist < 0) {
+        return false; 
       }
+
+      // محاسبه زمان باقی‌مانده
+      const h = Math.floor(dist / 3600000);
+      const m = Math.floor((dist % 3600000) / 60000);
+      const s = Math.floor((dist % 60000) / 1000);
+      item.timeLeft = `${h}:${m}:${s}`;
+      
+      return true; // آیتم را نگه دار
     });
+
   }, 1000);
 };
 

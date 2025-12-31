@@ -2,6 +2,7 @@
   <div class="cart-page">
     <div class="container">
       <h1>Your Shopping Cart</h1>
+      
       <div v-if="cartStore.items.length === 0" class="empty">
         <p>Your cart is empty!</p>
         <button @click="$router.push('/')">Go Shopping</button>
@@ -12,8 +13,9 @@
           <div class="item-info">
             <h3>{{ item.name }}</h3>
             <p>Quantity: {{ item.quantity }}</p>
+            <p style="font-size: 0.8rem; color: #888;">Unit Price: ${{ item.priceAtPurchase || item.price }}</p>
           </div>
-          <div class="item-price">${{ item.price * item.quantity }}</div>
+          <div class="item-price">${{ (item.priceAtPurchase || item.price) * item.quantity }}</div>
           <button @click="cartStore.removeFromCart(item.id)" class="remove">Remove</button>
         </div>
         <div class="total-section">
@@ -26,8 +28,17 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
 import { useCartStore } from '../store/cart';
+
 const cartStore = useCartStore();
+
+// --- تغییر اصلی اینجاست ---
+onMounted(async () => {
+  // هر بار که این صفحه باز می‌شود، قیمت‌ها را با سرور چک کن
+  // اگر ادمین تخفیف را حذف کرده باشد یا زمانش تمام شده باشد، اینجا اصلاح می‌شود
+  await cartStore.validateCartPrices();
+});
 </script>
 
 <style scoped>
